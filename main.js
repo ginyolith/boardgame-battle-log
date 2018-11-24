@@ -1,5 +1,5 @@
 // Preparing for Firebase
-const config = ;
+const config = firebaseConfig;
 
 firebase.initializeApp(config);
 
@@ -7,44 +7,90 @@ const db = firebase.firestore();
 const settings = {/* your settings... */ timestampsInSnapshots: true};
 db.settings(settings);
 
-const collection = db.collection("boardgame-battle-log");
+const collection_logs = db.collection("logs");
+const collection_users = db.collection("users");
 
 // Preparing Vue.js
 const app = new Vue({
     el : '#app',
     data : {
-        dabug: false,
-        currentName : '',
+        debugMode: true,
+        currentUser : {
+            id : '',
+            name : ''
+        },
         users : [],
         logs : []
     },
 
-    mounted : function() {
-        collection.get().then((querySnapshot) => {
-            querySnapshot.forEach((doc) => {
-                const log = doc.data()
+    mounted : () => {
+        // define functions
+        const insertLogs = function(querySnapshot) {
+            const insertLog = function(change) {
+                const log = change.doc.data()
                 const date = new Date(null)
 
                 date.setTime(log.time.seconds * 1000)
                 log.time = date
 
-                this.logs.push(log)
-            });
-        });
+                app.$data.logs.push(log)
+            }
+
+            querySnapshot.docChanges().forEach(insertLog)
+        }
+
+        const insertUsers = function(querySnapshot) {
+            const insertUser = (doc) => {
+                const user = {
+                    name : doc.data().name,
+                    id : doc.id
+                }
+
+                app.$data.users.push(user)
+            }
+
+            const deleteUser = (doc) => {
+                app.$data.users.forEach((user, index) => {
+                    if (doc.id === user.id) {
+                        app.$data.users.splice(index, 1)
+                    }
+                })
+            }
+
+            querySnapshot.docChanges().forEach((change) => {
+                const type = change.type
+                if (type === 'added') {
+                    insertUser(change.doc)
+                } else if (type === 'removed') {
+                    deleteUser(change.doc)
+                }
+            })
+        }
+
+        // add listeners
+        collection_logs.onSnapshot(insertLogs)
+        collection_users.onSnapshot(insertUsers)
     },
+
     methods : {
-        addName : function () {
-            if (this.currentName === '') {
+        addUser : function () {
+            if (this.currentUser.name === '') {
                 return
             }
 
-            const user = {
-                name : this.currentName,
-                point : null
+            collection_users.add(this.currentUser)
+
+            // IDと名前を初期化
+            this.currentUser.id = ''
+            this.currentUser.name = ''
+        },
+
+        deleteUser : (user) => {
+            if (user.id ==='') {
+                return
             }
 
-            this.users.push(user)
-            this.currentName = ''
+            collection_users.doc(user.id).delete()
         },
 
         addBattleLog : function () {
@@ -73,15 +119,19 @@ const app = new Vue({
 
             this.logs.push(log)
 
-            collection.add(log)
+            collection_logs.add(log)
 
-            this.users.forEach(function (user) {
+            this.users.forEach( (user) => {
                 user.point = null;
             })
         },
 
         renderResult : function(log) {
-            return log.users.map(function(value) {
+            if (log.users == null) {
+                return
+            }
+
+            return log.users.map((value) => {
                 return `${value.name}:${value.point} points`
             }).join(" / ")
         }
