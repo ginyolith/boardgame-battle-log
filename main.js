@@ -9,6 +9,7 @@ db.settings(settings);
 
 const collection_logs = db.collection("logs");
 const collection_users = db.collection("users");
+const collection_cards = db.collection("cards");
 
 // Preparing Vue.js
 const app = new Vue({
@@ -19,14 +20,17 @@ const app = new Vue({
             id : '',
             name : ''
         },
+        addToCardUser : null,
+        editingCard : null,
         users : [],
-        logs : []
+        logs : [],
+        cards : []
     },
 
     mounted : () => {
         // define functions
         const insertLogs = function(querySnapshot) {
-            const insertLog = function(change) {
+            querySnapshot.docChanges().forEach((change) => {
                 const log = change.doc.data()
                 const date = new Date(null)
 
@@ -34,35 +38,34 @@ const app = new Vue({
                 log.time = date
 
                 app.$data.logs.push(log)
-            }
-
-            querySnapshot.docChanges().forEach(insertLog)
+            })
         }
 
         const insertUsers = function(querySnapshot) {
-            const insertUser = (doc) => {
-                const user = {
-                    name : doc.data().name,
-                    id : doc.id
-                }
-
-                app.$data.users.push(user)
-            }
-
-            const deleteUser = (doc) => {
-                app.$data.users.forEach((user, index) => {
-                    if (doc.id === user.id) {
-                        app.$data.users.splice(index, 1)
-                    }
-                })
-            }
-
             querySnapshot.docChanges().forEach((change) => {
+                // initialize
+                const users = app.$data.users
                 const type = change.type
+                const doc = change.doc
+
                 if (type === 'added') {
-                    insertUser(change.doc)
+
+                    // Add user to local Observable fields
+                    const user = {
+                        name : doc.data().name,
+                        id : doc.id
+                    }
+
+                    users.push(user)
+
                 } else if (type === 'removed') {
-                    deleteUser(change.doc)
+
+                    // Delete user from local Observable fields
+                    users.forEach((user, index) => {
+                        if (doc.id === user.id) {
+                            users.splice(index, 1)
+                        }
+                    })
                 }
             })
         }
@@ -134,6 +137,67 @@ const app = new Vue({
             return log.users.map((value) => {
                 return `${value.name}:${value.point} points`
             }).join(" / ")
+        },
+
+        createCard : function() {
+            this.editingCard = new Card(this.users)
+        },
+        
+        deleteCard : function () {
+            this.editingCard = null
+        },
+
+        saveCard : function () {
+            // save into firebase
+            collection_cards.add(this.editingCard.asEntity())
+            this.editingCard = null
+        },
+
+        deleteCardUser : function(user) {
+            this.editingCard.removeUser(user)
+        },
+
+        addUserToCard: function () {
+            this.editingCard.addUser(this.addToCardUser)
+            this.addToCardUser = null
         }
     }
 })
+
+class Card {
+    constructor(users) {
+        this.title = '',
+        this.users = []
+        this.selectableUsers = []
+
+        users.forEach((user) => {this.selectableUsers.push(user)})
+    }
+
+    addUser(added) {
+        this.users.push(added)
+        this.selectableUsers.forEach((user, index) => {
+            if (user.id === added.id) {
+                this.selectableUsers.splice(index, 1)
+                return
+            }
+        })
+    }
+
+    removeUser(deleted) {
+        this.users.forEach((user, index) => {
+            if (user.id === deleted.id) {
+                this.users.splice(index, 1)
+                return
+            }
+        })
+
+        this.selectableUsers.push(deleted)
+    }
+
+    asEntity() {
+        return {
+            title : this.title,
+            users : this.users
+        }
+    }
+}

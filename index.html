@@ -4,7 +4,29 @@
     </head>
     <body>
         <div id="app">
-            <div  v-cloak v-show="users.length > 0">
+            <div  v-cloak v-show="cards.length > 0">
+
+            </div>
+
+            <div v-if="editingCard != null">
+                <p>Editing Card</p>
+                <p>title : <input type="text" v-model="editingCard.title" /></p>
+                <div v-for="user in editingCard.users">
+                    <p>{{ user.name }}<button @click="deleteCardUser(user)">Delete</button></p>
+                </div>
+                <p>
+                    <select v-model="addToCardUser">
+                        <option v-for="user in editingCard.selectableUsers" v-bind:value="user">
+                            {{ user.name}}
+                        </option>
+                    </select>
+                    <button @click="addUserToCard">Add User</button></p>
+                <p><button @click="saveCard">Save</button><button @click="deleteCard">Delete</button></p>
+            </div>
+
+            <button v-else @click="createCard">Create Battle Card</button>
+
+            <div v-cloak v-show="users.length > 0">
                 <div v-for="user in users">
                     <p>{{ user.name }}:<input type="number" v-model="user.point" /> <button @click="deleteUser(user)">Delete</button></p>
                 </div>
