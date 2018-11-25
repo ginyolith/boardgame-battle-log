@@ -4,40 +4,55 @@
     </head>
     <body>
         <div id="app">
-            <div  v-cloak v-show="cards.length > 0">
+            <div  v-cloak v-show="cards.length > 0" >
+                <h2>Cards</h2>
+                <div class="card-container">
+                    <div v-if="editingCard != null" class="container">
+                        <p>Editing Card</p>
+                        <p>title : <input type="text" v-model="editingCard.title" /></p>
+                        <div v-for="user in editingCard.users">
+                            <p>{{ user.name }}<button @click="deleteCardUser(user)">Delete</button></p>
+                        </div>
+                        <p>
+                            <select v-model="addToCardUser">
+                                <option v-for="user in editingCard.selectableUsers" v-bind:value="user">
+                                    {{ user.name}}
+                                </option>
+                            </select>
+                            <button @click="addUserToCard">Add User</button>
+                        </p>
+                        <button @click="saveCard">Save</button>
+                        <button @click="clearEditingCard">Delete</button>
+                    </div>
+                    <button v-else @click="createCard">Create Battle Card</button>
 
-            </div>
-
-            <div v-if="editingCard != null">
-                <p>Editing Card</p>
-                <p>title : <input type="text" v-model="editingCard.title" /></p>
-                <div v-for="user in editingCard.users">
-                    <p>{{ user.name }}<button @click="deleteCardUser(user)">Delete</button></p>
+                    <div v-for="card in cards" class="card">
+                        <h3>{{ card.title }}</h3>
+                        <div v-for="user in card.users">
+                            <p>{{ user.name }}:<input type="text" v-model="user.point" maxlength="5" class="point-input"/> points</p>
+                        </div>
+                        <button @click="saveLog(card)">save battle log</button>
+                        <button @click="deleteCard(card)">Delete</button>
+                    </div>
                 </div>
-                <p>
-                    <select v-model="addToCardUser">
-                        <option v-for="user in editingCard.selectableUsers" v-bind:value="user">
-                            {{ user.name}}
-                        </option>
-                    </select>
-                    <button @click="addUserToCard">Add User</button></p>
-                <p><button @click="saveCard">Save</button><button @click="deleteCard">Delete</button></p>
             </div>
 
-            <button v-else @click="createCard">Create Battle Card</button>
 
-            <div v-cloak v-show="users.length > 0">
-                <div v-for="user in users">
-                    <p>{{ user.name }}:<input type="number" v-model="user.point" /> <button @click="deleteUser(user)">Delete</button></p>
+
+
+            <div  class="container">
+                <div v-cloak v-show="users.length > 0">
+                    <h2> Users </h2>
+                    <div v-for="user in users">
+                        <p>{{ user.name }} <button @click="deleteUser(user)">Delete</button></p>
+                    </div>
                 </div>
 
-                <button @click="addBattleLog">Submit</button>
+                <p>add user</p>
+                <p>Name:<input type="text" v-model="currentUser.name" v-on:keyup.enter="addUser"></p>
             </div>
 
-            <p>add user</p>
-            <p>Name:<input type="text" v-model="currentUser.name" v-on:keyup.enter="addUser"></p>
-
-            <div v-show="logs.length > 0" v-cloak>
+            <div v-show="logs.length > 0" v-cloak class="container">
                 <p>battle log:</p>
                 <div v-for="log in logs">
                     <p> time : {{ log.time }} || {{ renderResult(log) }}  </p>

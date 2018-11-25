@@ -70,9 +70,33 @@ const app = new Vue({
             })
         }
 
+        const insertCards = (querySnapshot) => {
+            querySnapshot.docChanges().forEach((change) => {
+                // initialize
+                const cards = app.$data.cards
+                const type = change.type
+                const doc = change.doc
+
+                if (type === 'added') {
+                    // Add user to local Observable fields
+                    const card = createCardByDoc(doc, app.$data.users)
+                    cards.push(card)
+                } else if (type === 'removed') {
+
+                    // Delete user from local Observable fields
+                    cards.forEach((user, index) => {
+                        if (doc.id === user.id) {
+                            cards.splice(index, 1)
+                        }
+                    })
+                }
+            })
+        }
+
         // add listeners
         collection_logs.onSnapshot(insertLogs)
         collection_users.onSnapshot(insertUsers)
+        collection_cards.onSnapshot(insertCards)
     },
 
     methods : {
@@ -96,8 +120,8 @@ const app = new Vue({
             collection_users.doc(user.id).delete()
         },
 
-        addBattleLog : function () {
-            if (this.users.length === 0) {
+        saveLog :  (card) => {
+            if (card.users.length < 1) {
                 return
             }
 
@@ -106,9 +130,12 @@ const app = new Vue({
                 users: []
             }
 
-            this.users.forEach( (user) => {
+            let isSavingLogSuccess = true
+
+            card.users.forEach( (user) => {
                 if (user.point == null) {
                     alert("Input names of all users before submit a log")
+                    isSavingLogSuccess = false
                     return
                 }
 
@@ -120,13 +147,10 @@ const app = new Vue({
                 log.users.push(one)
             })
 
-            this.logs.push(log)
-
-            collection_logs.add(log)
-
-            this.users.forEach( (user) => {
-                user.point = null;
-            })
+            if (isSavingLogSuccess) {
+                collection_logs.add(log)
+                card.users.forEach( (user) => { user.point = null; })
+            }
         },
 
         renderResult : function(log) {
@@ -140,10 +164,14 @@ const app = new Vue({
         },
 
         createCard : function() {
-            this.editingCard = new Card(this.users)
+            this.editingCard = createEditableCard(this.users)
         },
         
-        deleteCard : function () {
+        deleteCard : function (card) {
+            collection_cards.doc(card.id).delete()
+        },
+
+        clearEditingCard : function() {
             this.editingCard = null
         },
 
@@ -164,13 +192,48 @@ const app = new Vue({
     }
 })
 
+function createEditableCard(allUsers) {
+    return new Card(
+        '',
+        '',
+        allUsers,
+        []
+    )
+}
+
+function createCardByDoc(doc, allUsers) {
+    const data = doc.data()
+    if (data.title == null) {
+        data.title = ''
+    }
+
+    if (data.users == null || data.users == undefined) {
+        data.users = []
+    }
+
+    return new Card(
+        doc.id,
+        data.title,
+        allUsers,
+        data.users
+    )
+}
+
 class Card {
-    constructor(users) {
-        this.title = '',
-        this.users = []
+    constructor(id, title, allUsers, selectedUsers) {
+        this.id = id
+        this.title = title
+        this.users = selectedUsers
         this.selectableUsers = []
 
-        users.forEach((user) => {this.selectableUsers.push(user)})
+        const selectedUserIds = selectedUsers.map((elm) => {return elm.id})
+
+        allUsers.forEach((user) => {
+            // If the user is not selected...
+            if (selectedUserIds.indexOf(user.id) < 0) {
+                this.selectableUsers.push(user)
+            }
+        })
     }
 
     addUser(added) {
