@@ -45,7 +45,7 @@
             <div v-show="logs.length > 0" v-cloak class="container">
                 <h2>battle log</h2>
                 <div v-for="log in logs" class="log-line-container">
-                    <p>time : {{ log.time }} || </p>
+                    <p>title : {{log.title.name}} || time : {{ log.time }} || </p>
                     <div v-for="user in log.users" class="log-line-container">
                         {{ user.rank }} : {{ user.name }}({{ user.point }}) /
                     </div>

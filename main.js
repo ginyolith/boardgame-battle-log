@@ -49,7 +49,9 @@ const app = new Vue({
                     const log = {
                         id : change.doc.id,
                         time : date,
-                        users : data.users
+                        users : data.users,
+                        title : data.title
+
                     }
 
                     logs.push(log)
@@ -203,7 +205,8 @@ const app = new Vue({
 
             const log = {
                 time : new Date(),
-                users: []
+                users: [],
+                title : card.title
             }
 
             let isSavingLogSuccess = true
