@@ -6,6 +6,10 @@
     border: thin solid #000000;
 }
 
+.setting-container {
+    display: flex;
+}
+
 .container {
     border: thin solid #000000;
 }

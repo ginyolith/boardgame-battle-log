@@ -7,9 +7,10 @@ const db = firebase.firestore();
 const settings = {/* your settings... */ timestampsInSnapshots: true};
 db.settings(settings);
 
-const collection_logs = db.collection("logs");
-const collection_users = db.collection("users");
-const collection_cards = db.collection("cards");
+const collection_logs = db.collection("logs")
+const collection_users = db.collection("users")
+const collection_cards = db.collection("cards")
+const collection_titles = db.collection("title")
 
 // Preparing Vue.js
 const app = new Vue({
@@ -20,11 +21,17 @@ const app = new Vue({
             id : '',
             name : ''
         },
+
+        currentTitle : {
+            id : '',
+            name : ''
+        },
         addToCardUser : null,
         editingCard : null,
         users : [],
         logs : [],
-        cards : []
+        cards : [],
+        titles : []
     },
 
     mounted : () => {
@@ -110,13 +117,44 @@ const app = new Vue({
             })
         }
 
+        const insertTitles = (querySnapshot) => {
+            querySnapshot.docChanges().forEach((change) => {
+                // initialize
+                const titles = app.$data.titles
+                const type = change.type
+                const doc = change.doc
+
+                if (type === 'added') {
+
+                    // Add title to local Observable fields
+                    const title = {
+                        name : doc.data().name,
+                        id : doc.id
+                    }
+
+                    titles.push(title)
+
+                } else if (type === 'removed') {
+
+                    // Delete title from local Observable fields
+                    titles.forEach((title, index) => {
+                        if (doc.id === title.id) {
+                            titles.splice(index, 1)
+                        }
+                    })
+                }
+            })
+        }
+
         // add listeners
         collection_logs.onSnapshot(insertLogs)
         collection_users.onSnapshot(insertUsers)
         collection_cards.onSnapshot(insertCards)
+        collection_titles.onSnapshot(insertTitles)
     },
 
     methods : {
+        // User Master
         addUser : function () {
             if (this.currentUser.name === '') {
                 return
@@ -135,6 +173,27 @@ const app = new Vue({
             }
 
             collection_users.doc(user.id).delete()
+        },
+
+        // Title Master
+        addTitle : function () {
+            if (this.currentTitle.name === '') {
+                return
+            }
+
+            collection_titles.add(this.currentTitle)
+
+            // IDと名前を初期化
+            this.currentTitle.id = ''
+            this.currentTitle.name = ''
+        },
+
+        deleteTitle : (title) => {
+            if (title.id ==='') {
+                return
+            }
+
+            collection_titles.doc(title.id).delete()
         },
 
         saveLog :  (card) => {
@@ -212,7 +271,9 @@ const app = new Vue({
         addUserToCard: function () {
             this.editingCard.addUser(this.addToCardUser)
             this.addToCardUser = null
-        }
+        },
+
+
     }
 })
 
