@@ -31,13 +31,30 @@ const app = new Vue({
         // define functions
         const insertLogs = function(querySnapshot) {
             querySnapshot.docChanges().forEach((change) => {
-                const log = change.doc.data()
-                const date = new Date(null)
+                const data = change.doc.data()
+                const logs = app.$data.logs
+                const type = change.type
 
-                date.setTime(log.time.seconds * 1000)
-                log.time = date
+                if (type === 'added') {
+                    const date = new Date(null)
+                    date.setTime(data.time.seconds * 1000)
 
-                app.$data.logs.push(log)
+                    const log = {
+                        id : change.doc.id,
+                        time : date,
+                        users : data.users
+                    }
+
+                    logs.push(log)
+                } else if (type === 'removed') {
+                    // Delete user from local Observable fields
+                    logs.forEach((log, index) => {
+                        if (change.doc.id === log.id) {
+                            logs.splice(index, 1)
+                        }
+                    })
+                }
+
             })
         }
 
@@ -132,7 +149,9 @@ const app = new Vue({
 
             let isSavingLogSuccess = true
 
-            card.users.forEach( (user) => {
+            card.users
+                .sort((a, b) => {return b.point - a.point})
+                .forEach( (user, index) => {
                 if (user.point == null) {
                     alert("Input names of all users before submit a log")
                     isSavingLogSuccess = false
@@ -140,6 +159,7 @@ const app = new Vue({
                 }
 
                 const one = {
+                    rank : index + 1,
                     name : user.name,
                     point : user.point
                 }
@@ -151,6 +171,10 @@ const app = new Vue({
                 collection_logs.add(log)
                 card.users.forEach( (user) => { user.point = null; })
             }
+        },
+
+        deleteLog : function(log) {
+            collection_logs.doc(log.id).delete()
         },
 
         renderResult : function(log) {

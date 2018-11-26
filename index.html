@@ -37,8 +37,16 @@
                 </div>
             </div>
 
-
-
+            <div v-show="logs.length > 0" v-cloak class="container">
+                <p>battle log:</p>
+                <div v-for="log in logs" class="log-line-container">
+                    <p>time : {{ log.time }} || </p>
+                    <div v-for="user in log.users" class="log-line-container">
+                        {{ user.rank }} : {{ user.name }}({{ user.point }}) /
+                    </div>
+                    <button @click="deleteLog(log)">Delete</button>
+                </div>
+            </div>
 
             <div  class="container">
                 <div v-cloak v-show="users.length > 0">
@@ -52,12 +60,6 @@
                 <p>Name:<input type="text" v-model="currentUser.name" v-on:keyup.enter="addUser"></p>
             </div>
 
-            <div v-show="logs.length > 0" v-cloak class="container">
-                <p>battle log:</p>
-                <div v-for="log in logs">
-                    <p> time : {{ log.time }} || {{ renderResult(log) }}  </p>
-                </div>
-            </div>
 
             <pre v-show="debugMode">{{ $data }}</pre>
 

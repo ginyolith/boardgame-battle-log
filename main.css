@@ -17,3 +17,7 @@
 .point-input {
     width : 3em
 }
+
+.log-line-container {
+    display: flex;
+}
