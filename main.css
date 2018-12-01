@@ -6,12 +6,12 @@
     border: thin solid #000000;
 }
 
-.setting-container {
-    display: flex;
+.v-card {
+    border-radius: 20px;
 }
 
-.container {
-    border: thin solid #000000;
+.setting-container {
+    display: flex;
 }
 
 .card-container {

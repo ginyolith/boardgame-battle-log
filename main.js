@@ -16,22 +16,77 @@ const collection_titles = db.collection("title")
 const app = new Vue({
     el : '#app',
     data : {
+        dialog : {
+            card : false,
+            user : false,
+            title : false
+        },
+        drawer: true,
         debugMode: true,
         currentUser : {
             id : '',
-            name : ''
+            name : '',
         },
+
+        currentUserShow : false,
 
         currentTitle : {
             id : '',
             name : ''
         },
+
+        currentTitleShow : false,
+
+        headers : {
+            user : [
+                {
+                    text: '名前',
+                    align: 'left',
+                    sortable: false,
+                    value: 'name'
+                },
+                { text: 'id', value: 'id' },
+            ],
+            title : [
+                {
+                    text: 'タイトル',
+                    align: 'left',
+                    sortable: false,
+                    value: 'name'
+                },
+                { text: 'id', value: 'id' },
+            ]
+        },
+
         addToCardUser : null,
-        editingCard : null,
+        editingCard : {
+            title : {},
+            users : []
+        },
         users : [],
         logs : [],
         cards : [],
-        titles : []
+        titles : [],
+        search : ''
+    },
+
+    props: {
+        source: String
+    },
+
+    watch: {
+        'editingCard.users' : {
+            handler: function (val, oldVal) {
+                const lastUser = val[val.length - 1];
+                if (lastUser != null) {
+                    if (lastUser.id == null || lastUser.id == undefined) {
+                        val.splice(val.length - 1, 1)
+                        this.search = lastUser
+                    }
+                }
+            },
+            deep: false
+        }
     },
 
     mounted : () => {
@@ -78,6 +133,7 @@ const app = new Vue({
 
                     // Add user to local Observable fields
                     const user = {
+                        text : doc.data().name,
                         name : doc.data().name,
                         id : doc.id
                     }
@@ -130,8 +186,11 @@ const app = new Vue({
 
                     // Add title to local Observable fields
                     const title = {
-                        name : doc.data().name,
-                        id : doc.id
+                        text : doc.data().name,
+                        value : {
+                            name : doc.data().name,
+                            id : doc.id
+                        }
                     }
 
                     titles.push(title)
@@ -140,8 +199,16 @@ const app = new Vue({
 
                     // Delete title from local Observable fields
                     titles.forEach((title, index) => {
-                        if (doc.id === title.id) {
+                        if (doc.id === title.value.id) {
                             titles.splice(index, 1)
+                        }
+                    })
+                } else if (type == 'modified') {
+                    titles.forEach((title, index) => {
+                        if (doc.id === title.value.id) {
+                            title.text = doc.data().name
+                            title.value.id   = doc.id
+                            title.value.name = doc.data().name
                         }
                     })
                 }
@@ -162,19 +229,46 @@ const app = new Vue({
                 return
             }
 
-            collection_users.add(this.currentUser)
+            if (this.currentUser.id == '') {
+                collection_users.add(this.currentUser)
+            } else {
+                collection_users.doc(this.currentUser.id).set(this.currentUser)
+            }
 
             // IDと名前を初期化
-            this.currentUser.id = ''
-            this.currentUser.name = ''
+            this.currentUser = {
+                id : '',
+                name : ''
+            }
+
+            this.currentUserShow = false
         },
 
         deleteUser : (user) => {
+            if (!confirm(`本当にユーザー ${user.name} を削除しますか？`)) {
+                return
+            }
+
             if (user.id ==='') {
                 return
             }
 
             collection_users.doc(user.id).delete()
+        },
+
+        editUser : function(user) {
+            if (user.id ==='') {
+                return
+            }
+
+            this.currentUser = user
+            this.currentUserShow = true
+        },
+
+        clearEditingUser : function() {
+            this.currentUser.id = ''
+            this.currentUser.name = ''
+            this.currentUserShow = false
         },
 
         // Title Master
@@ -183,19 +277,48 @@ const app = new Vue({
                 return
             }
 
-            collection_titles.add(this.currentTitle)
+            if (this.currentTitle.id == '') {
+                collection_titles.add(this.currentTitle)
+            } else {
+                collection_titles.doc(this.currentTitle.id).set(this.currentTitle)
+            }
 
             // IDと名前を初期化
-            this.currentTitle.id = ''
-            this.currentTitle.name = ''
+            this.currentTitle = {
+                id : '',
+                name : ''
+            }
+
+            this.currentTitleShow = false
         },
 
         deleteTitle : (title) => {
+            if (!confirm(`本当にタイトル ${title.name} を削除しますか？`)) {
+                return
+            }
+
             if (title.id ==='') {
                 return
             }
 
             collection_titles.doc(title.id).delete()
+
+
+        },
+
+        editTitle : function(title) {
+            if (title.id ==='') {
+                return
+            }
+
+            this.currentTitle = title
+            this.currentTitleShow = true
+        },
+
+        clearEditingTitle : function() {
+            this.currentTitle.id = ''
+            this.currentTitle.name = ''
+            this.currentTitleShow = false
         },
 
         saveLog :  (card) => {
@@ -249,22 +372,39 @@ const app = new Vue({
             }).join(" / ")
         },
 
-        createCard : function() {
+        toCardEditMode : function() {
             this.editingCard = createEditableCard(this.users)
+            this.dialog.card = true
         },
-        
+
         deleteCard : function (card) {
+            if (!confirm(`本当にカードを削除しますか？`)) {
+                return
+            }
+
             collection_cards.doc(card.id).delete()
         },
 
         clearEditingCard : function() {
-            this.editingCard = null
+            this.editingCard = createEditableCard(this.users)
+            this.dialog.card = false
         },
 
         saveCard : function () {
+            for (const user of this.editingCard.users) {
+                if (user.id == null || user.id == undefined) {
+                    collection_users.add({
+                        name : user,
+                        id : ''
+                    })
+                }
+            }
+
             // save into firebase
             collection_cards.add(this.editingCard.asEntity())
-            this.editingCard = null
+
+            this.editingCard = createEditableCard(this.users)
+            this.dialog = false
         },
 
         deleteCardUser : function(user) {
@@ -275,8 +415,6 @@ const app = new Vue({
             this.editingCard.addUser(this.addToCardUser)
             this.addToCardUser = null
         },
-
-
     }
 })
 
@@ -314,7 +452,13 @@ class Card {
         this.users = selectedUsers
         this.selectableUsers = []
 
-        const selectedUserIds = selectedUsers.map((elm) => {return elm.id})
+        const selectedUserIds = selectedUsers.map(
+            (elm) => {
+                if (elm != null && elm != undefined) {
+                    return elm.id
+                }
+            }
+        )
 
         allUsers.forEach((user) => {
             // If the user is not selected...
