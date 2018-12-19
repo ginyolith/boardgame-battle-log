@@ -19,7 +19,8 @@ const app = new Vue({
         dialog : {
             card : false,
             user : false,
-            title : false
+            title : false,
+            log : false
         },
         drawer: true,
         debugMode: true,
@@ -55,14 +56,38 @@ const app = new Vue({
                     value: 'name'
                 },
                 { text: 'id', value: 'id' },
+            ],
+            log : [
+                {
+                    text: '時刻',
+                    align: 'left',
+                    value: 'time'
+                },
+                {
+                    text: 'タイトル', value :'title'
+                },
+                {
+                    text :'ユーザー', value : 'users'
+                }
             ]
         },
 
         addToCardUser : null,
+
         editingCard : {
             title : {},
             users : []
         },
+
+        showLogCardInfo : {
+            show : false,
+            card : null,
+            logs :[],
+            results :[],
+            collection_logs : null,
+            unsubscribe : null
+        },
+
         users : [],
         logs : [],
         cards : [],
@@ -78,11 +103,18 @@ const app = new Vue({
         'editingCard.users' : {
             handler: function (val, oldVal) {
                 const lastUser = val[val.length - 1];
+
+                // 検索のみ行う。ユーザーの追加はしない
                 if (lastUser != null) {
                     if (lastUser.id == null || lastUser.id == undefined) {
                         val.splice(val.length - 1, 1)
                         this.search = lastUser
                     }
+                }
+
+                // 5人目の追加はしない
+                if (val.length > 5) {
+                    val.splice(val.length - 1, 1)
                 }
             },
             deep: false
@@ -90,38 +122,6 @@ const app = new Vue({
     },
 
     mounted : () => {
-        // define functions
-        const insertLogs = function(querySnapshot) {
-            querySnapshot.docChanges().forEach((change) => {
-                const data = change.doc.data()
-                const logs = app.$data.logs
-                const type = change.type
-
-                if (type === 'added') {
-                    const date = new Date(null)
-                    date.setTime(data.time.seconds * 1000)
-
-                    const log = {
-                        id : change.doc.id,
-                        time : date,
-                        users : data.users,
-                        title : data.title
-
-                    }
-
-                    logs.push(log)
-                } else if (type === 'removed') {
-                    // Delete user from local Observable fields
-                    logs.forEach((log, index) => {
-                        if (change.doc.id === log.id) {
-                            logs.splice(index, 1)
-                        }
-                    })
-                }
-
-            })
-        }
-
         const insertUsers = function(querySnapshot) {
             querySnapshot.docChanges().forEach((change) => {
                 // initialize
@@ -216,7 +216,6 @@ const app = new Vue({
         }
 
         // add listeners
-        collection_logs.onSnapshot(insertLogs)
         collection_users.onSnapshot(insertUsers)
         collection_cards.onSnapshot(insertCards)
         collection_titles.onSnapshot(insertTitles)
@@ -359,7 +358,8 @@ const app = new Vue({
         },
 
         deleteLog : function(log) {
-            collection_logs.doc(log.id).delete()
+            console.log('hoge')
+            this.showLogCardInfo.collection_logs.doc(log.id).delete()
         },
 
         renderResult : function(log) {
@@ -374,6 +374,11 @@ const app = new Vue({
 
         toCardEditMode : function() {
             this.editingCard = createEditableCard(this.users)
+            this.dialog.card = true
+        },
+
+        editCard : function(card) {
+            this.editingCard = card
             this.dialog.card = true
         },
 
@@ -415,6 +420,94 @@ const app = new Vue({
             this.editingCard.addUser(this.addToCardUser)
             this.addToCardUser = null
         },
+
+        openLog : function (card) {
+            this.closeLog()
+
+            this.showLogCardInfo.card = card
+
+            const doc = collection_cards.doc(card.id)
+            this.showLogCardInfo.collection_logs = doc.collection("log")
+
+            for (const user of card.users) {
+                this.showLogCardInfo.results.push({
+                    user : user,
+                    point : '',
+                    rank : ''
+                })
+            }
+
+            this.showLogCardInfo.show = true
+
+
+            // define functions
+            const insertLogs = function(querySnapshot) {
+                querySnapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data()
+                    const logs = app.$data.showLogCardInfo.logs
+                    const type = change.type
+
+                    if (type === 'added') {
+                        const date = new Date(null)
+                        date.setTime(data.time.seconds * 1000)
+
+                        const log = {
+                            id : change.doc.id,
+                            time : date,
+                            results : data.results,
+                            title : data.title
+                        }
+
+                        app.$data.showLogCardInfo.logs.push(log)
+                    } else if (type === 'removed') {
+                        // Delete user from local Observable fields
+                        app.$data.showLogCardInfo.logs.forEach((log, index) => {
+                            if (change.doc.id === log.id) {
+                                logs.splice(index, 1)
+                            }
+                        })
+                    }
+                })
+            }
+
+            this.showLogCardInfo.unsubscribe = this.showLogCardInfo.collection_logs.onSnapshot(insertLogs)
+        },
+
+        closeLog : function () {
+            if (this.showLogCardInfo.unsubscribe != null) {
+                this.showLogCardInfo.unsubscribe()
+            }
+
+            this.showLogCardInfo = {
+                show : false,
+                card : null,
+                logs :[],
+                results :[],
+                collection_logs : null,
+                unsubscribe: null
+            }
+        },
+
+        addLog : function() {
+            this.showLogCardInfo.results
+                .sort((a, b) => {return b.point - a.point})
+                .forEach((value, index) => {
+                    value.rank = index + 1
+                })
+
+            this.showLogCardInfo.collection_logs.add({
+                time: new Date,
+                title : this.showLogCardInfo.card.title,
+                id: "",
+                results: this.showLogCardInfo.results
+            })
+
+
+
+            for (const result of this.showLogCardInfo.results) {
+                result.point = ''
+            }
+        }
     }
 })
 
