@@ -1,92 +1,238 @@
 <html>
     <head>
+        <link href='https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons' rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.min.css" rel="stylesheet">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+        <meta charset="UTF-8">
         <link rel="stylesheet" type="text/css" href="./main.css">
     </head>
     <body>
-        <div id="app">
-            <div  v-cloak>
-                <h2>Cards</h2>
-                <div  class="card-container">
-                    <div v-if="editingCard != null" class="container">
-                        <p>Editing Card</p>
-                        <p>
-                            title :
-                            <select v-model="editingCard.title">
-                                <option v-for="title in titles" v-bind:value="title">{{ title.name}}</option>
-                            </select>
-                        </p>
-                        <div v-for="user in editingCard.users">
-                            <p>{{ user.name }}<button @click="deleteCardUser(user)">Delete</button></p>
-                        </div>
-                        <p>
-                            <select v-model="addToCardUser">
-                                <option v-for="user in editingCard.selectableUsers" v-bind:value="user">
-                                    {{ user.name}}
-                                </option>
-                            </select>
-                            <button @click="addUserToCard">Add User</button>
-                        </p>
-                        <button @click="saveCard">Save</button>
-                        <button @click="clearEditingCard">Delete</button>
-                    </div>
-                    <button v-else @click="createCard">Create Battle Card</button>
+    <div id="app">
+        <v-app id="inspire" white>
+            <v-toolbar app fixed clipped-left>
+                <v-toolbar-title>Application</v-toolbar-title>
+            </v-toolbar>
 
-                    <div v-for="card in cards" class="card">
-                        <h3>{{ card.title.name }}</h3>
-                        <div v-for="user in card.users">
-                            <p>{{ user.name }}:<input type="text" v-model="user.point" maxlength="5" class="point-input"/> points</p>
-                        </div>
-                        <button @click="saveLog(card)">save battle log</button>
-                        <button @click="deleteCard(card)">Delete</button>
-                    </div>
-                </div>
-            </div>
+            <v-content>
+                <v-container fluid grid-list-md v-cloak>
+                    <h2>Cards</h2>
+                    <v-data-iterator
+                            :items="cards"
+                            content-tag="v-layout"
+                            row
+                            wrap>
 
-            <div v-show="logs.length > 0" v-cloak class="container">
-                <h2>battle log</h2>
-                <div v-for="log in logs" class="log-line-container">
-                    <p>title : {{log.title.name}} || time : {{ log.time }} || </p>
-                    <div v-for="user in log.users" class="log-line-container">
-                        {{ user.rank }} : {{ user.name }}({{ user.point }}) /
-                    </div>
-                    <button @click="deleteLog(log)">Delete</button>
-                </div>
-            </div>
+                        <v-flex slot="item"
+                                slot-scope="props"
+                                xs8
+                                sm5
+                                md4
+                                lg3>
 
-            <div class="setting-container">
-                <div class="container">
-                    <div v-cloak v-show="users.length > 0">
-                        <h2> Users </h2>
-                        <div v-for="user in users">
-                            <p>{{ user.name }} <button @click="deleteUser(user)">Delete</button></p>
-                        </div>
-                    </div>
+                            <v-card tile>
+                                <v-card-title><h4>{{ props.item.title.name }}</h4></v-card-title>
+                                <v-divider></v-divider>
+                                <v-container>
+                                    <v-chip v-for="user in props.item.users" >{{ user.name }}</v-chip>
+                                </v-container>
 
-                    <p>add user</p>
-                    <p>Name:<input type="text" v-model="currentUser.name" v-on:keyup.enter="addUser"></p>
-                </div>
+                                <v-card-actions>
+                                    <v-spacer></v-spacer>
+                                    <v-btn flat small @click="editCard(props.item)">編集</v-btn>
+                                    <v-btn flat small @click="openLog(props.item)">ログ</v-btn>
+                                </v-card-actions>
+                            </v-card>
+                        </v-flex>
+                    </v-data-iterator>
 
-                <div class="container">
-                    <div v-cloak v-show="users.length > 0">
-                        <h2> Titles </h2>
-                        <div v-for="title in titles">
-                            <p> {{ title.name }} <button @click="deleteTitle(title)">Delete</button></p>
-                        </div>
-                    </div>
+                    <v-dialog v-model="dialog.card" width="500">
+                        <v-btn block slot="activator" color="primary" dark @click="toCardEditMode">カードを追加する</v-btn>
+                        <v-card v-show="editingCard != null">
+                            <v-card-title class="headline grey lighten-2" primary-title>カードを追加する</v-card-title>
+                            <v-container>
+                                <v-select
+                                        v-model="editingCard.title"
+                                        :items="titles"
+                                        label="タイトル"
+                                        required
+                                >
+                                </v-select>
+                                <v-combobox
+                                        v-model="editingCard.users"
+                                        :items="users"
+                                        :search-input.sync="search"
+                                        hide-selected
+                                        hint="5人まで選択できます"
+                                        label="対戦カードのユーザーを追加"
+                                        multiple
+                                        persistent-hint
+                                        small-chips
+                                        required>
+                                    <template slot="no-data">
+                                        <v-list-tile>
+                                            <v-list-tile-content>
+                                                <v-list-tile-title>
+                                                    検索ワード "<strong>{{ search }}</strong>" に該当するユーザーはいません。
+                                                </v-list-tile-title>
+                                            </v-list-tile-content>
+                                        </v-list-tile>
+                                    </template>
+                                </v-combobox>
+                            </v-container>
 
-                    <p>add user</p>
-                    <p>Name:<input type="text" v-model="currentTitle.name" v-on:keyup.enter="addTitle"></p>
-                </div>
-            </div>
+                            <v-divider></v-divider>
+                            <v-card-actions>
+                                <v-spacer></v-spacer>
+                                <v-btn color="primary" flat @click="saveCard"> Save </v-btn>
+                                <v-btn color="secondary" @click="clearEditingCard">Delete</v-btn>
+                            </v-card-actions>
+                        </v-card>
+                    </v-dialog>
 
-            <pre v-show="debugMode">{{ $data }}</pre>
-        </div>
+                    <v-dialog v-model="dialog.user" width="500">
+                        <v-btn block slot="activator" color="primary" dark>ユーザー管理</v-btn>
+                        <v-card>
+                            <v-card-title class="headline grey lighten-2" primary-title>ユーザー管理</v-card-title>
+                            <v-container>
+                                <v-data-table
+                                        :headers="headers.user"
+                                        :items="users"
+                                        class="elevation-1">
+                                    <template slot="items" slot-scope="props">
+                                        <td>{{ props.item.name }}</td>
+                                        <td class="text-xs-right">{{ props.item.id }}</td>
+                                        <td class="justify-center layout px-0">
+                                            <v-icon small class="mr-2" @click="editUser(props.item)">edit</v-icon>
+                                            <v-icon small @click="deleteUser(props.item)">delete</v-icon>
+                                        </td>
+                                    </template>
+                                </v-data-table>
+                            </v-container>
+
+                            <v-divider></v-divider>
+
+                            <v-container v-show="currentUserShow">
+                                <v-spacer></v-spacer>
+
+                                <v-text-field
+                                        v-model="currentUser.name"
+                                        label="ユーザー名を入力してください"
+                                        clearable
+                                ></v-text-field>
+                            </v-container>
+
+
+                            <v-card-actions>
+                                <v-spacer></v-spacer>
+                                <v-btn v-show="currentUser.name != ''" color="primary" flat @click="addUser">ユーザーを追加</v-btn>
+                                <v-btn v-show="currentUserShow == false" color="primary" flat @click="currentUserShow = true">ユーザーを追加</v-btn>
+                                <v-btn v-show="currentUserShow" color="primary" flat @click="clearEditingUser">キャンセル</v-btn>
+                            </v-card-actions>
+
+                        </v-card>
+                    </v-dialog>
+
+                    <v-dialog v-model="dialog.title" width="500">
+                        <v-btn block slot="activator" color="primary" dark>タイトル管理</v-btn>
+                        <v-card>
+                            <v-card-title class="headline grey lighten-2" primary-title>タイトル管理</v-card-title>
+                            <v-container>
+                                <v-data-table
+                                        :headers="headers.title"
+                                        :items="titles"
+                                        class="elevation-1">
+                                    <template slot="items" slot-scope="props">
+                                        <td>{{ props.item.value.name }}</td>
+                                        <td class="text-xs-right">{{ props.item.value.id }}</td>
+                                        <td class="justify-center layout px-0">
+                                            <v-icon small class="mr-2" @click="editTitle(props.item.value)">edit</v-icon>
+                                            <v-icon small @click="deleteTitle(props.item.value)">delete</v-icon>
+                                        </td>
+                                    </template>
+                                </v-data-table>
+                            </v-container>
+
+                            <v-divider></v-divider>
+
+                            <v-container v-show="currentTitleShow">
+                                <v-spacer></v-spacer>
+
+                                <v-text-field
+                                        v-model="currentTitle.name"
+                                        label="タイトル名を入力してください"
+                                        clearable
+                                ></v-text-field>
+                            </v-container>
+
+
+                            <v-card-actions>
+                                <v-spacer></v-spacer>
+                                <v-btn v-show="currentTitle.name != ''" color="primary" flat @click="addTitle">タイトルを追加</v-btn>
+                                <v-btn v-show="currentTitleShow == false" color="primary" flat @click="currentTitleShow = true">タイトルを追加</v-btn>
+                                <v-btn v-show="currentTitleShow" color="primary" flat @click="clearEditingTitle">キャンセル</v-btn>
+                            </v-card-actions>
+                        </v-card>
+                    </v-dialog>
+
+                </v-container>
+
+                <v-layout column v-show="showLogCardInfo.show" style="margin-left : 20px; margin-right: 20px;">
+                    <v-layout row>
+                        <v-btn @click="closeLog">閉じる</v-btn>
+                    </v-layout>
+
+                    <v-layout row>
+                        <template v-for="result in showLogCardInfo.results">
+                        <v-flex xs4>
+                            <v-subheader> {{ result.user.name}} </v-subheader>
+                        </v-flex>
+                        <v-flex xs8>
+                            <v-text-field
+                                    label="ポイント数を入力"
+                                    v-model="result.point"
+                                    suffix="pt"
+                            ></v-text-field>
+                        </v-flex>
+                        </template>
+                        <v-btn @click="addLog">追加</v-btn>
+                    </v-layout>
+
+                    <v-data-table
+                            :headers="headers.log"
+                            :items="showLogCardInfo.logs"
+                            class="elevation-1">
+                        <template slot="items" slot-scope="props">
+                            <td>{{ props.item.time }}</td>
+                            <td> {{ props.item.title.name }}</td>
+                            <td>
+                                <v-chip v-for="result in props.item.results" class="lighten-3" v-show="result.rank <= 3">
+                                    <v-avatar v-bind:class="{yellow : result.rank == 1, blue : result.rank == 2, green : result.rank == 3}"
+                                              class="darken-1">
+                                        {{ result.rank }}</v-avatar>
+                                    {{ result.user.name }}
+                                </v-chip>
+                            </td>
+                            <td class="justify-center layout px-0">
+                                <v-icon small @click="deleteLog(props.item)">delete</v-icon>
+                            </td>
+                        </template>
+                    </v-data-table>
+                </v-layout>
+
+            </v-content>
+
+            <v-footer app fixed>
+                <span>&copy; 2017</span>
+            </v-footer>
+        </v-app>
+    </div>
     </body>
 
     <script src="https://www.gstatic.com/firebasejs/5.5.8/firebase.js"></script>
     <script src="https://www.gstatic.com/firebasejs/5.5.8/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/5.5.8/firebase-firestore.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.js"></script>
     <script src="firebase-config.js"></script>
     <script src="main.js"></script>
 </html>
